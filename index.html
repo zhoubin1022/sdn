@@ -1,0 +1,797 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+    <link rel="stylesheet" href="css/index.css">
+    <script src="js/d3.min.js" charset="utf-8"></script>
+</head>
+<style>
+    *{
+        margin: 0;
+        padding: 0;
+    }
+    html,body{
+        width: 100%;
+        height: 100%;
+    }
+    svg{
+        width:100%;
+        height: 100%;
+        background: rgba(217,217,217);
+        visibility: visible;
+    }
+</style>
+<body>
+    <svg id="svg">
+        <text style="right:500;top:300;width:400;height:300;background:yellow"></text>
+    </svg>
+</body>    
+</html>
+<script>
+    window.onload = function(){
+        console.log(1);
+        const xhr = new XMLHttpRequest();
+        xhr.responseType = 'json';
+        xhr.open('GET','http://192.168.198.129:5000/getTopo');
+        xhr.send();
+        xhr.onreadystatechange = function(){
+            var data;
+            if(xhr.readyState===4){
+                if(xhr.status>=200&&xhr.status<300){
+                    console.log(xhr.response)
+                }
+            }
+        }
+    }
+    var json = {
+        "hosts": [
+            {"name": "h1", "ip": "10.0.0.1", "cover": 32, "id": "1"},
+            {"name": "h2", "ip": "10.0.0.2", "cover": 32, "id": "2"},
+            {"name": "h3", "ip": "10.0.0.3", "cover": 32, "id": "3"},
+            {"name": "h4", "ip": "10.0.0.4", "cover": 32, "id": "4"}
+        ],
+        "switchs": [
+            {"name": "s1", "id": "openflow1"},
+            {"name": "s2", "id": "openflow2"},
+            {"name": "s3", "id": "openflow3"},
+            {"name": "s4", "id": "openflow4"}
+        ],
+        "links": [
+            {"one": "s1", "other": "h1", "one_port": 1, "other_port": 1, "id": 1},
+            {"one": "s1", "other": "s2", "one_port": 2, "other_port": 1, "id": 2},
+            {"one": "s1", "other": "s3", "one_port": 3, "other_port": 1, "id": 3},
+            {"one": "s1", "other": "s4", "one_port": 4, "other_port": 1, "id": 4},
+            {"one": "s2", "other": "s4", "one_port": 2, "other_port": 2, "id": 5},
+            {"one": "s3", "other": "s4", "one_port": 2, "other_port": 3, "id": 6},
+            {"one": "s4", "other": "h2", "one_port": 4, "other_port": 1, "id": 7},
+            {"one": "s4", "other": "h3", "one_port": 5, "other_port": 1, "id": 8},
+            {"one": "s4", "other": "h4", "one_port": 6, "other_port": 1, "id": 9}
+        ]
+    }
+    var speed = [1,2,3,4,5,6,7,8,9]
+    var svg = d3.select("#svg")
+    var width = 150
+    var height = 150
+    // 主机位置
+    var h_x1 = 250-200;
+    var h_y1 = 400;
+    var h_x2 = 1550-200;
+    var h_y2 = 100;
+    var h_x3 = 1550-200;
+    var h_y3 = 400;
+    var h_x4 = 1550-200;
+    var h_y4 = 700;
+    // 交换机位置
+    var s_x1 = 600-200;
+    var s_y1 = 400;
+    var s_x2 = 900-200;
+    var s_y2 = 100;
+    var s_x3 = 900-200;
+    var s_y3 = 700;
+    var s_x4 = 1200-200;
+    var s_y4 = 400;
+
+    // 窗口位置
+    var info_x1 = 1550;
+    var info_y1 = 250;
+
+
+    // 链路颜色
+    var colorCrowded1 = "green";
+    var colorCrowded2 = "orange";
+    var colorCrowded3 = "red";
+    var colorCrowded = colorCrowded1;
+
+    // s1-h1
+    var h1_s1_link = svg.append("line")
+        .attr("x1", h_x1+width/2)
+        .attr("y1", h_y1+height/2)
+        .attr("x2", s_x1+width/2)
+        .attr("y2", s_y1+height/2)
+        .attr("stroke", colorCrowded)
+        .attr("stroke-width", "2px")
+    // s1-s2
+    var s1_s2_link = svg.append("line")
+        .attr("x1", s_x1+width/2)
+        .attr("y1", s_y1+height/2)
+        .attr("x2", s_x2+width/2)
+        .attr("y2", s_y2+height/2)
+        .attr("stroke", colorCrowded)
+        .attr("stroke-width", "2px")
+    // s1-s3
+    var s1_s3_link = svg.append("line")
+        .attr("x1", s_x1+width/2)
+        .attr("y1", s_y1+height/2)
+        .attr("x2", s_x3+width/2)
+        .attr("y2", s_y3+height/2)
+        .attr("stroke", colorCrowded)
+        .attr("stroke-width", "2px");
+    // s1-s4    
+    var s1_s4_link = svg.append("line")
+        .attr("x1", s_x1+width/2)
+        .attr("y1", s_y1+height/2)
+        .attr("x2", s_x4+width/2)
+        .attr("y2", s_y4+height/2)
+        .attr("stroke", colorCrowded)
+        .attr("stroke-width", "2px");
+    // s2-s4
+    var s2_s4_link = svg.append("line")
+        .attr("x1", s_x2+width/2)
+        .attr("y1", s_y2+height/2)
+        .attr("x2", s_x4+width/2)
+        .attr("y2", s_y4+height/2)
+        .attr("stroke", colorCrowded)
+        .attr("stroke-width", "2px");
+    // s3-s4
+    var s3_s4_link = svg.append("line")
+        .attr("x1", s_x3+width/2)
+        .attr("y1", s_y3+height/2)
+        .attr("x2", s_x4+width/2)
+        .attr("y2", s_y4+height/2)
+        .attr("stroke", colorCrowded)
+        .attr("stroke-width", "2px");
+    // s4-h2
+    var s4_h2_link = svg.append("line")
+        .attr("x1", s_x4+width/2)
+        .attr("y1", s_y4+height/2)
+        .attr("x2", h_x2+width/2)
+        .attr("y2", h_y2+height/2)
+        .attr("stroke", colorCrowded)
+        .attr("stroke-width", "2px");
+    // s4-h3
+    var s4_h3_link = svg.append("line")
+        .attr("x1", s_x4+width/2)
+        .attr("y1", s_y4+height/2)
+        .attr("x2", h_x3+width/2)
+        .attr("y2", h_y3+height/2)
+        .attr("stroke", colorCrowded)
+        .attr("stroke-width", "2px");
+    // s4-h4
+    var s4_h4_link = svg.append("line")
+        .attr("x1", s_x4+width/2)
+        .attr("y1", s_y4+height/2)
+        .attr("x2", h_x4+width/2)
+        .attr("y2", h_y4+height/2)
+        .attr("stroke", colorCrowded)
+        .attr("stroke-width", "2px");
+    // 消息窗
+    var infoLog= ["","","","","","","","","",""]
+    // var infoLogs = infoLog.split('#')
+    var infoText = svg.append('text')
+        .attr("x",info_x1)
+        .attr("y",info_y1)
+        .attr("width", 10)
+        // .attr("height", 200)
+        .style('font-weight', 500)
+        .style('font-family', 'Arial')
+        // .style('visibility','hidden')        
+        .text("")
+    var infoText1 = infoText.append("tspan")
+        .attr("x",infoText.attr("x"))
+        .attr("dy","30")
+        .text('')
+    var infoText2 = infoText.append("tspan")
+        .attr("x",infoText.attr("x"))
+        .attr("dy","30")
+        .text('')
+    var infoText3 = infoText.append("tspan")
+        .attr("x",infoText.attr("x"))
+        .attr("dy","30")
+        .text('')
+    var infoText4 = infoText.append("tspan")
+        .attr("x",infoText.attr("x"))
+        .attr("dy","30")
+        .text('')
+    var infoText5 = infoText.append("tspan")
+        .attr("x",infoText.attr("x"))
+        .attr("dy","30")
+        .text('')
+    var infoText6 = infoText.append("tspan")
+        .attr("x",infoText.attr("x"))
+        .attr("dy","30")
+        .text('')
+    var infoText7 = infoText.append("tspan")
+        .attr("x",infoText.attr("x"))
+        .attr("dy","30")
+        .text('')
+    var infoText8 = infoText.append("tspan")
+        .attr("x",infoText.attr("x"))
+        .attr("dy","30")
+        .text('')
+    var infoText9 = infoText.append("tspan")
+        .attr("x",infoText.attr("x"))
+        .attr("dy","30")
+        .text('')
+    var infoText10 = infoText.append("tspan")
+        .attr("x",infoText.attr("x"))
+        .attr("dy","30")
+        .text('')
+    // infoText.selectAll("tspan")
+    //     .data(infoLogs)
+    //     .enter()
+    //     .append("tspan")
+    //     .attr("x",infoText.attr("x"))
+    //     .attr("dy","100")
+    //     .attr("font-size","200%")
+    //     .text(function(d){
+    //         return d;
+    //     });
+
+    // 加载主机，交换机
+    var h1 = svg.append('image')
+        .attr("id","host1")
+        .attr("xlink:href","./static/host.png")
+        .attr("x",h_x1)
+        .attr("y",h_y1)
+        .attr("width",width)
+        .attr("height",height)
+        .attr("draggable","true")
+        .on("click",function(){
+            console.log("点击host1")
+            infoLog[0]="正在检测是否受到DDOS攻击"
+            infoText.style("visibility","visible")
+            const xhr = new XMLHttpRequest();
+            xhr.responseType = 'json';
+            xhr.open('POST','http://192.168.198.129:5000/getHost');
+            var formdata = new FormData()
+            formdata.append("host_id",1)
+            xhr.send(formdata);
+            xhr.onreadystatechange = function(){
+                var data;
+                if(xhr.readyState===4){
+                    if(xhr.status>=200&&xhr.status<300){
+                        console.log(xhr.response)
+                        const xhr1 = new XMLHttpRequest();
+                        xhr1.responseType = 'json';
+                        xhr1.open('POST','http://192.168.198.129:5000/judge');
+                        var formdata1 = new FormData()
+                        formdata1.append("host_id",1)
+                        xhr1.send(formdata1);
+                        xhr1.onreadystatechange = function(){
+                          if(xhr1.readyState===4){
+                          	if(xhr1.status>=200&&xhr.status<300){
+                          	  console.log(xhr1.response.isAttacking);
+                          	   if(xhr1.response.isAttacking === true){
+                          	   	infoLog[1] = "正在受到ddos攻击";
+                          	   }else{
+                          	   	infoLog[1] = "没有受到ddos攻击";
+                          	   }
+                          	}
+                          }
+                        }
+                    }
+                }
+            }
+        })
+    var h2 = svg.append('image')
+        .attr("id","host2")
+        .attr("xlink:href","./static/host.png")
+        .attr("x",h_x2)
+        .attr("y",h_y2)
+        .attr("width",width)
+        .attr("height",height)
+        .on("click",function(){
+            console.log("hello2")
+        })
+    var h3 = svg.append('image')
+        .attr("id","host3")
+        .attr("xlink:href","./static/host.png")
+        .attr("x",h_x3)
+        .attr("y",h_y3)
+        .attr("width",width)
+        .attr("height",height)
+        .on("click",function(){
+            console.log("hello3")
+        })
+    var h4 = svg.append('image')
+        .attr("id","host4")
+        .attr("xlink:href","./static/host.png")
+        .attr("x",h_x4)
+        .attr("y",h_y4)
+        .attr("width",width)
+        .attr("height",height)
+        .on("click",function(){
+            console.log("hello4")
+        })    
+    svg.append('image')
+        .attr("id","openflow1")
+        .attr("xlink:href","./static/switch.png")
+        .attr("x",s_x1)
+        .attr("y",s_y1)
+        .attr("width",width)
+        .attr("height",height);
+    svg.append('image')
+        .attr("id","openflow2")
+        .attr("xlink:href","./static/switch.png")
+        .attr("x",s_x2)
+        .attr("y",s_y2)
+        .attr("width",width)
+        .attr("height",height);
+    svg.append('image')
+        .attr("id","openflow3")
+        .attr("xlink:href","./static/switch.png")
+        .attr("x",s_x3)
+        .attr("y",s_y3)
+        .attr("width",width)
+        .attr("height",height);
+    svg.append('image')
+        .attr("id","openflow4")
+        .attr("xlink:href","./static/switch.png")
+        .attr("x",s_x4)
+        .attr("y",s_y4)
+        .attr("width",width)
+        .attr("height",height);
+
+
+    // 增加速度
+    // h1-s1
+    var h1_s1_speed = svg.append('text')
+        .attr("x",(h_x1+width+s_x1)/2-20)
+        .attr("y",h_y1+height/2+20)
+        .style('font-weight', 500)
+        .style('font-family', 'Arial')
+        .style('fill', colorCrowded)
+        .text("速度："+speed[0]+"B/s")
+    // s1-s2
+    var s1_s2_speed = svg.append('text')
+        .attr("x",(s_x1+s_x2+width)/2+20)
+        .attr("y",(s_y1+s_y2+height)/2)
+        .style('font-weight', 500)
+        .style('font-family', 'Arial')
+        .style('fill', colorCrowded)
+        .text("速度："+speed[1]+"B/s")
+    // s1-s3
+    var s1_s3_speed = svg.append('text')
+        .attr("x",(s_x1+width+s_x3)/2+20)
+        .attr("y",(s_y1+height+s_y3)/2)
+        .style('font-weight', 500)
+        .style('font-family', 'Arial')
+        .style('fill', colorCrowded)
+        .text("速度："+speed[2]+"B/s")
+    // s1-s4
+    var s1_s4_speed = svg.append('text')
+        .attr("x",(s_x1+width+s_x4)/2-20)
+        .attr("y",(s_y1+height+s_y4)/2+20)
+        .style('font-weight', 500)
+        .style('font-family', 'Arial')
+        .style('fill', colorCrowded)
+        .text("速度："+speed[3]+"B/s")
+    // s2-s4
+    var s2_s4_speed = svg.append('text')
+        .attr("x",(s_x2+width+s_x4)/2+10)
+        .attr("y",(s_y2+height+s_y4)/2)
+        .style('font-weight', 500)
+        .style('font-family', 'Arial')
+        .style('fill', colorCrowded)
+        .text("速度："+speed[4]+"B/s")
+    // s3-s4
+    var s3_s4_speed = svg.append('text')
+        .attr("x",(s_x3+width+s_x4)/2+10)
+        .attr("y",(s_y3+height+s_y4)/2+10)
+        .style('font-weight', 500)
+        .style('font-family', 'Arial')
+        .style('fill', colorCrowded)
+        .text("速度："+speed[5]+"B/s")
+    // s4-h2
+    var s4_h2_speed = svg.append('text')
+        .attr("x",(s_x4+width+h_x2)/2)
+        .attr("y",(s_y4+height+h_y2)/2+20)
+        .style('font-weight', 500)
+        .style('font-family', 'Arial')
+        .style('fill', colorCrowded)
+        .text("速度："+speed[6]+"B/s")
+    // s4-h3
+    var s4_h3_speed = svg.append('text')
+        .attr("x",(s_x4+width+h_x3)/2-20)
+        .attr("y",(s_y4+height+h_y3)/2+20)
+        .style('font-weight', 500)
+        .style('font-family', 'Arial')
+        .style('fill', colorCrowded)
+        .text("速度："+speed[7]+"B/s")
+    // s4-h4
+    var s4_h4_speed = svg.append('text')
+        .attr("x",(s_x4+width+h_x4)/2+10)
+        .attr("y",(s_y4+height+h_y4)/2)
+        .style('font-weight', 500)
+        .style('font-family', 'Arial')
+        .style('fill', colorCrowded)
+        .text("速度："+speed[8]+"B/s")
+
+
+
+
+
+
+    // host 信息
+    // h1信息
+    var h1_text = svg.append('text')
+        .attr("x",h_x1)
+        .attr("y",h_y1-50)
+        .style('font-weight', 500)
+        .style('font-family', 'Arial')
+        .style('fill', 'black')
+    var str = 'host:'+json.hosts[0].name + ',' + 'ip:'+json.hosts[0].ip;
+    var strs = str.split(",") ;
+    h1_text.selectAll("tspan")
+        .data(strs)
+        .enter()
+        .append("tspan")
+        .attr("x",h1_text.attr("x"))
+        .attr("dy","1em")
+        .attr("font-size","200%")
+        .text(function(d){
+            return d;
+        });
+    // h2信息
+    var h2_text = svg.append('text')
+        .attr("x",h_x2)
+        .attr("y",h_y2-50)
+        .style('font-weight', 500)
+        .style('font-family', 'Arial')
+        .style('fill', 'black')
+    str = 'host:'+json.hosts[1].name + ',' + 'ip:'+json.hosts[1].ip;
+    strs = str.split(",") ;
+    h2_text.selectAll("tspan")
+        .data(strs)
+        .enter()
+        .append("tspan")
+        .attr("x",h2_text.attr("x"))
+        .attr("dy","1em")
+        .attr("font-size","200%")
+        .text(function(d){
+            return d;
+        });
+    // h3信息
+    var h3_text = svg.append('text')
+        .attr("x",h_x3)
+        .attr("y",h_y3-50)
+        .style('font-weight', 500)
+        .style('font-family', 'Arial')
+        .style('fill', 'black')
+    str = 'host:'+json.hosts[2].name + ',' + 'ip:'+json.hosts[2].ip;
+    strs = str.split(",") ;
+    h3_text.selectAll("tspan")
+        .data(strs)
+        .enter()
+        .append("tspan")
+        .attr("x",h3_text.attr("x"))
+        .attr("dy","1em")
+        .attr("font-size","200%")
+        .text(function(d){
+            return d;
+        });
+    // h4信息
+    var h4_text = svg.append('text')
+        .attr("x",h_x4)
+        .attr("y",h_y4-50)
+        .style('font-weight', 500)
+        .style('font-family', 'Arial')
+        .style('fill', 'black')
+    str = 'host:'+json.hosts[3].name + ',' + 'ip:'+json.hosts[3].ip;
+    strs = str.split(",") ;
+    h4_text.selectAll("tspan")
+        .data(strs)
+        .enter()
+        .append("tspan")
+        .attr("x",h4_text.attr("x"))
+        .attr("dy","1em")
+        .attr("font-size","200%")
+        .text(function(d){
+            return d;
+        });
+
+    // switch信息
+    // s1信息
+    svg.append('text')
+        .attr("x",s_x1)
+        .attr("y",s_y1+20)
+        .style('font-weight', 500)
+        .style('font-family', 'Arial')
+        .style('fill', 'black')
+        .attr("font-size","200%")
+        .text("switch:s1")
+    // s2信息
+    svg.append('text')
+        .attr("x",s_x2)
+        .attr("y",s_y2+20)
+        .style('font-weight', 500)
+        .style('font-family', 'Arial')
+        .style('fill', 'black')
+        .attr("font-size","200%")
+        .text("switch:s2")
+    // s3信息
+    svg.append('text')
+        .attr("x",s_x3)
+        .attr("y",s_y3+height)
+        .style('font-weight', 500)
+        .style('font-family', 'Arial')
+        .style('fill', 'black')
+        .attr("font-size","200%")
+        .text("switch:s3")
+    // s4信息
+    svg.append('text')
+        .attr("x",s_x4)
+        .attr("y",s_y4+20)
+        .style('font-weight', 500)
+        .style('font-family', 'Arial')
+        .style('fill', 'black')
+        .attr("font-size","200%")
+        .text("switch:s4")
+    
+    // h1端口
+    // 端口1
+    svg.append('text')
+        .attr("x",h_x1+width)
+        .attr("y",h_y1+height/2-10)
+        .style('font-weight', 500)
+        .style('font-family', 'Arial')
+        .style('fill', 'black')
+        .text("端口:1")
+    // h2端口
+    // 端口1
+    svg.append('text')
+        .attr("x",h_x2-60)
+        .attr("y",h_y2+height)
+        .style('font-weight', 500)
+        .style('font-family', 'Arial')
+        .style('fill', 'black')
+        .text("端口:1")
+    // h3端口
+    // 端口1
+    svg.append('text')
+        .attr("x",h_x3-50)
+        .attr("y",h_y3+height/2-10)
+        .style('font-weight', 500)
+        .style('font-family', 'Arial')
+        .style('fill', 'black')
+        .text("端口:1")
+    // h4端口
+    // 端口1
+    svg.append('text')
+        .attr("x",h_x4-75)
+        .attr("y",h_y4)
+        .style('font-weight', 500)
+        .style('font-family', 'Arial')
+        .style('fill', 'black')
+        .text("端口:1")
+
+    // s1端口
+    //端口1
+    svg.append('text')
+        .attr("x",s_x1-40)
+        .attr("y",s_y1+height/2-10)
+        .style('font-weight', 500)
+        .style('font-family', 'Arial')
+        .style('fill', 'black')
+        .text("端口:1")
+    //端口2
+    svg.append('text')
+        .attr("x",s_x1+width)
+        .attr("y",s_y1-10)
+        .style('font-weight', 500)
+        .style('font-family', 'Arial')
+        .style('fill', 'black')
+        .text("端口:2")
+    //端口3
+    svg.append('text')
+        .attr("x",s_x1+width)
+        .attr("y",s_y1+height+10)
+        .style('font-weight', 500)
+        .style('font-family', 'Arial')
+        .style('fill', 'black')
+        .text("端口:3")
+    //端口4
+    svg.append('text')
+        .attr("x",s_x1+width)
+        .attr("y",s_y1+height/2-10)
+        .style('font-weight', 500)
+        .style('font-family', 'Arial')
+        .style('fill', 'black')
+        .text("端口:4")
+
+    // s2端口
+    // 端口1
+    svg.append('text')
+        .attr("x",s_x2-45)
+        .attr("y",s_y2+height)
+        .style('font-weight', 500)
+        .style('font-family', 'Arial')
+        .style('fill', 'black')
+        .text("端口:1")
+    // 端口2
+    svg.append('text')
+        .attr("x",s_x2+width)
+        .attr("y",s_y2+height)
+        .style('font-weight', 500)
+        .style('font-family', 'Arial')
+        .style('fill', 'black')
+        .text("端口:2")
+
+    // s3端口
+    // 端口1
+    svg.append('text')
+        .attr("x",s_x3-55)
+        .attr("y",s_y3)
+        .style('font-weight', 500)
+        .style('font-family', 'Arial')
+        .style('fill', 'black')
+        .text("端口:1")
+    // 端口2
+    svg.append('text')
+        .attr("x",s_x3+width+15)
+        .attr("y",s_y3)
+        .style('font-weight', 500)
+        .style('font-family', 'Arial')
+        .style('fill', 'black')
+        .text("端口:2")
+
+    // s4端口
+    //端口1
+    svg.append('text')
+        .attr("x",s_x4-40)
+        .attr("y",s_y4+height/2-10)
+        .style('font-weight', 500)
+        .style('font-family', 'Arial')
+        .style('fill', 'black')
+        .text("端口:1")
+    //端口2
+    svg.append('text')
+        .attr("x",s_x4-40)
+        .attr("y",s_y4-10)
+        .style('font-weight', 500)
+        .style('font-family', 'Arial')
+        .style('fill', 'black')
+        .text("端口:2")
+    //端口3
+    svg.append('text')
+        .attr("x",s_x4-40)
+        .attr("y",s_y4+height+10)
+        .style('font-weight', 500)
+        .style('font-family', 'Arial')
+        .style('fill', 'black')
+        .text("端口:3")
+    //端口4
+    svg.append('text')
+        .attr("x",s_x4+width)
+        .attr("y",s_y4-10)
+        .style('font-weight', 500)
+        .style('font-family', 'Arial')
+        .style('fill', 'black')
+        .text("端口:4")
+    //端口5
+    svg.append('text')
+        .attr("x",s_x4+width)
+        .attr("y",s_y4+height/2-10)
+        .style('font-weight', 500)
+        .style('font-family', 'Arial')
+        .style('fill', 'black')
+        .text("端口:5")
+    //端口6
+    svg.append('text')
+        .attr("x",s_x4+width)
+        .attr("y",s_y4+height+10)
+        .style('font-weight', 500)
+        .style('font-family', 'Arial')
+        .style('fill', 'black')
+        .text("端口:6")
+
+    var fuzaijunhengButtton = svg.append('image')
+        .attr("x",10)
+        .attr("y",10)
+        .attr("xlink:href","./static/startfuzai.PNG")
+        .on("click",function(){
+            console.log("开始负载均衡")
+            const xhr = new XMLHttpRequest();
+            xhr.responseType = 'json';
+            xhr.open('GET','http://192.168.198.129:5000/odl');
+            xhr.send();
+            xhr.onreadystatechange = function(){
+                var data;
+                if(xhr.readyState===4){
+                    if(xhr.status>=200&&xhr.status<300){
+                        console.log(xhr.response)
+                    }
+                }
+                
+            }
+            fuzaijunhengButtton.attr("xlink:href","./static/startedfuzai.PNG")
+        })
+
+
+    function judge(speed,link,s){       
+        if(s<200){
+            speed.style('fill', colorCrowded1)
+            link.attr("stroke", colorCrowded1)
+        }
+        else if(s>=200&&s<400){
+            speed.style('fill', colorCrowded2)
+            link.attr("stroke", colorCrowded2)
+        }
+        else if(s>=400){
+            speed.style('fill', colorCrowded3)
+            link.attr("stroke", colorCrowded3)
+        }
+    }
+
+    var tick = function(){
+        console.log(1);
+        const xhr = new XMLHttpRequest();
+        xhr.responseType = 'json';
+        xhr.open('GET','http://192.168.198.129:5000/getSpeed');
+        xhr.send();
+        xhr.onreadystatechange = function(){
+            var data;
+            if(xhr.readyState===4){
+                if(xhr.status>=200&&xhr.status<300){
+                    console.log(xhr.response)
+                    speed = xhr.response.speed;
+                }
+            }
+        }
+        // infoLog += '#新消息'
+        // infoLogs = infoLog.split('#')
+        // infoText.selectAll("tspan")
+        // .data(infoLogs)
+        // .enter()
+        // .append("tspan")
+        // .attr("x",infoText.attr("x"))
+        // .attr("dy","1em")
+        // .attr("font-size","200%")
+        // .text(function(d){
+        //     return d;
+        // });
+        infoText1.text(infoLog[0])
+        infoText2.text(infoLog[1])
+        infoText3.text(infoLog[2])
+        infoText4.text(infoLog[3])
+        infoText5.text(infoLog[4])
+        infoText6.text(infoLog[5])
+        infoText7.text(infoLog[6])
+        infoText8.text(infoLog[7])
+        infoText9.text(infoLog[8])
+        infoText10.text(infoLog[9])
+        h1_s1_speed.text("速度:"+speed[0]+"B/s")
+        s1_s2_speed.text("速度:"+speed[1]+"B/s")
+        s1_s3_speed.text("速度:"+speed[2]+"B/s")
+        s1_s4_speed.text("速度:"+speed[3]+"B/s")
+        s2_s4_speed.text("速度:"+speed[4]+"B/s")
+        s3_s4_speed.text("速度:"+speed[5]+"B/s")
+        s4_h2_speed.text("速度:"+speed[6]+"B/s")
+        s4_h3_speed.text("速度:"+speed[7]+"B/s")
+        s4_h4_speed.text("速度:"+speed[8]+"B/s")
+        judge(h1_s1_speed,h1_s1_link,speed[0])
+        judge(s1_s2_speed,s1_s2_link,speed[1])
+        judge(s1_s3_speed,s1_s3_link,speed[2])
+        judge(s1_s4_speed,s1_s4_link,speed[3])
+        judge(s2_s4_speed,s2_s4_link,speed[4])
+        judge(s3_s4_speed,s3_s4_link,speed[5])
+        judge(s4_h2_speed,s4_h2_link,speed[6])
+        judge(s4_h3_speed,s4_h3_link,speed[7])
+        judge(s4_h4_speed,s4_h4_link,speed[8])
+        setTimeout(function(){requestAnimationFrame(tick)},2000)
+    }
+    tick();
+</script>
